@@ -12,15 +12,19 @@ public final class Transformation {
 	/**
 	 * Transform the board representation of the piece into a String one for output.
 	 * 
-	 * @param piece : number between -1 and +1 used as representation of a piece
+	 * @param piece : number between -8 and +32 used as representation of a piece
 	 * @return String-representation of the piece
 	 */
 	public static String numberToPiece(int piece) {
-		switch (piece) {
-			case 1: return "D";
-			case 0: return "-"; 
-			case -1: return "T";
-			default: return "X";
+		if (piece > 0 && piece <= 32) {
+			return "D";
+		} else if (piece == 0) {
+			return "-";
+		} else if (piece < 0 && piece >= -8) {
+			return "T";
+		} else {
+			assert false;
+			return "X";
 		}
 	}
 	
@@ -149,7 +153,7 @@ public final class Transformation {
 	}
 	
 	/**
-	 * 
+	 * Warning, internally we use various numbers for dwarfs and trolls.
 	 * @param piece Should be a char containing a the first letter of a piece.
 	 * @return The numerical value of the piece.
 	 */

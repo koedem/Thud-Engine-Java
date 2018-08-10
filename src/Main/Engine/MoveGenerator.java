@@ -436,9 +436,25 @@ public class MoveGenerator implements MoveGeneratorInterface {
 	};
 
 	private BoardInterface board;
+	private int[] dwarfLocations;
+	private int[] trollLocations;
+
+	private int iterativeDwarfLocationNumber = 0;
+	private int iterativeDwarfPosition = 0;
+	private byte[][] iterativeArray = diagonalsForDwarfs;
+	private int iterativeDwarfDirection = 0;
+	private int iterativeDwarfDistance = 0;
+
+	private int iterativeTrollLocationNumber = 0;
+	private int iterativeTrollPosition = 0;
+	private int iterativeTrollDirection = 0;
+	private byte[] currentNeighbors;
+	private int neighborsLength;
 
 	public MoveGenerator(BoardInterface board) {
 		this.board = board;
+		this.dwarfLocations = board.getDwarfLocations();
+		this.trollLocations = board.getTrollLocations();
 	}
 
 	@Override
@@ -462,19 +478,136 @@ public class MoveGenerator implements MoveGeneratorInterface {
 		collectCaptures(toMove, allMoves);
 
 		if (toMove) {
-			for (int square = 0; square < 164; square++) {
-				if (board.getSquare(square) == 1) {
+			/*for (int square = 0; square < 164; square++) {
+				if (board.getSquare(square) > 0) {
+					dwarfMoves(square, allMoves);
+				}
+			}*/
+			for (int pieceNumber = 1; pieceNumber <= 32; pieceNumber++) {
+				int square = dwarfLocations[pieceNumber];
+				if (square >= 0) {
 					dwarfMoves(square, allMoves);
 				}
 			}
 		} else {
-			for (int square = 0; square < 164; square++) {
-				if (board.getSquare(square) == -1) {
+			/*for (int square = 0; square < 164; square++) {
+				if (board.getSquare(square) < 0) {
+					trollMoves(square, allMoves);
+				}
+			}*/
+			for (int pieceNumber = 1; pieceNumber <= 8; pieceNumber++) {
+				int square = trollLocations[pieceNumber];
+				if (square >= 0) {
 					trollMoves(square, allMoves);
 				}
 			}
 		}
 		return allMoves;
+	}
+	private short[] oldCollectMoves(boolean toMove, short[] allMoves) {
+		allMoves[0] = 0;
+		collectCaptures(toMove, allMoves);
+
+		if (toMove) {
+			for (int square = 0; square < 164; square++) {
+				if (board.getSquare(square) > 0) {
+					dwarfMoves(square, allMoves);
+				}
+			}
+		} else {
+			for (int square = 0; square < 164; square++) {
+				if (board.getSquare(square) < 0) {
+					trollMoves(square, allMoves);
+				}
+			}
+		}
+		return allMoves;
+	}
+
+	/**
+	 *
+	 * @return true if successful, false otherwise (if there are no dwarfs on the board)
+	 */
+	public boolean setupDwarfMoveIterator() {
+		iterativeDwarfLocationNumber = 0;
+		do {
+			if (iterativeDwarfLocationNumber >= 32) {
+				return false;
+			}
+			iterativeDwarfPosition = dwarfLocations[++iterativeDwarfLocationNumber];
+		} while (iterativeDwarfPosition < 0);
+		return true;
+	}
+
+	public int iterativeDwarfMoveGenerator() {
+		while (true) {
+			while (iterativeDwarfDirection < 4) {
+				byte[] sliding = iterativeArray[iterativeDwarfPosition * 4 + iterativeDwarfDirection];
+
+				if (iterativeDwarfDistance < sliding.length) {
+					byte aSliding = sliding[iterativeDwarfDistance++];
+					if (board.getSquare(Byte.toUnsignedInt(aSliding)) == 0) {
+						return ((iterativeDwarfPosition << 8) + (aSliding & 0xFF));
+					}
+				}
+				iterativeDwarfDistance = 0;
+
+				iterativeDwarfDirection++;
+			}
+			iterativeDwarfDirection = 0;
+			if (iterativeArray == diagonalsForDwarfs) {
+				iterativeArray = rowsForDwarfs;
+				continue;
+			}
+			iterativeArray = diagonalsForDwarfs;
+
+			do {
+				if (iterativeDwarfLocationNumber >= 32) {
+					return 0;
+				}
+				iterativeDwarfPosition = dwarfLocations[++iterativeDwarfLocationNumber];
+			} while (iterativeDwarfPosition < 0);
+		}
+	}
+
+	/**
+	 *
+	 * @return true if successful, false otherwise (if there are no trolls on the board)
+	 */
+	public boolean setupTrollMoveIterator() {
+		iterativeTrollLocationNumber = 0;
+		do {
+			if (iterativeTrollLocationNumber >= 8) {
+				return false;
+			}
+			iterativeTrollPosition = trollLocations[++iterativeTrollLocationNumber];
+		} while (this.iterativeTrollPosition < 0);
+
+		currentNeighbors = neighborSquares[iterativeTrollPosition];
+		neighborsLength = currentNeighbors.length;
+
+		return true;
+	}
+
+	public int iterativeTrollMoveGenerator() {
+		while (true) {
+			while (iterativeTrollDirection < neighborsLength) {
+				byte neighbor = currentNeighbors[iterativeTrollDirection++];
+				if (board.getSquare(Byte.toUnsignedInt(neighbor)) == 0) {
+					return ((iterativeTrollPosition << 8) + (neighbor & 0xFF));
+				}
+			}
+
+			iterativeTrollDirection = 0;
+			do {
+				if (iterativeTrollLocationNumber >= 8) {
+					return 0;
+				}
+				iterativeTrollPosition = trollLocations[++iterativeTrollLocationNumber];
+			} while (this.iterativeTrollPosition < 0);
+			currentNeighbors = neighborSquares[iterativeTrollPosition];
+			neighborsLength = currentNeighbors.length;
+		}
 	}
 
 	private void dwarfMoves(int square, short[] allMoves) {

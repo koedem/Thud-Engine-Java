@@ -11,20 +11,40 @@ import java.util.Hashtable;
  */
 public class Board implements BoardInterface {
 
-	MoveGeneratorInterface moveGenerator = new MoveGenerator(this);
-	SearchInterface search = new Search(this);
-	EvaluationInterface evaluation = new Evaluation(this);
-	Hashtable<Long, Node> hashtable = new Hashtable<Long, Node>();
+	/** NOTE: The locations arrays MUST be initialized before anything else!
+	 * dwarfLocations[i] contains where dwarf i is.
+	 * dwarfLocations[0] is unused.
+	 */
+	private int[] dwarfLocations = {-1, 0, 1, 3, 4, 5, 11, 12, 20, 21, 31, 32, 44, 45, 59, 60, 74, 89, 103, 104, 118, 119,
+	                                131, 132, 142, 143, 151, 152, 158, 159, 160, 162, 163};
 
 	/**
-	 * +1 for dwarf, -1 for troll, 0 for empty square
+	 * trollLocations[i] contains where troll i is.
+	 * trollLocations[0] is unused.
 	 */
-	private byte[] squares = new byte[] { 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-	                                      1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
-	                                      0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1,
-	                                      -1, -1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-	                                      0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1,
-	                                      1, 0, 1, 1 };
+	private int[] trollLocations = {-1, 66, 67, 68, 81, 82, 95, 96, 97};
+
+	private MoveGeneratorInterface[] moveGenerator = // with iterative move generation we need multiple instances. TODO rework MoveGenerator object
+			{new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this),
+			 new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this),
+			 new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this),
+			 new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this),
+			 new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this),
+			 new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this), new MoveGenerator(this)
+			};
+	private SearchInterface search = new Search(this);
+	private EvaluationInterface evaluation = new Evaluation(this);
+	private Hashtable<Long, Node> hashtable = new Hashtable<Long, Node>();
+
+	/**
+	 * +1 to +32 for dwarf, -1 to -8 for troll, 0 for empty square
+	 */
+	private byte[] squares = new byte[] { 1, 2, 0, 3, 4, 5, 0, 0, 0, 0, 0, 6, 7, 0, 0, 0, 0, 0, 0, 0, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10,
+	                                      11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 15, 0, 0, 0,
+	                                      0, 0, -1, -2, -3, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, -4, -5, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, -6,
+	                                      -7, -8, 0, 0, 0, 0, 0, 18, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 21, 0, 0, 0, 0, 0, 0, 0, 0,
+	                                      0, 0, 0, 22, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 25, 0, 0, 0, 0, 0, 0, 0, 26, 27, 0, 0, 0, 0, 0, 28, 29,
+	                                      30, 0, 31, 32 };
 	private boolean toMove = true; // true means dwarfs to move
 	private String bestmove = "";
 	private short[] rootMoves = new short[MoveGenerator.MAX_MOVE_COUNT];
@@ -131,18 +151,32 @@ public class Board implements BoardInterface {
 	@Override
 	public int makeMove(int move) {
 		assert squares[move & 0xFF] == 0 && squares[move >>> 8] != 0;
-		squares[move & 0xFF] = squares[move >>> 8];
-		squares[move >>> 8] = 0;
+		int startSquare = move >>> 8;
+		int endSquare = move & 0xFF;
+		if (toMove) {
+			dwarfLocations[squares[startSquare]] = endSquare;
+		} else {
+			trollLocations[-squares[startSquare]] = endSquare;
+		}
+		squares[endSquare] = squares[startSquare];
+		squares[startSquare] = 0;
 		changeToMove();
-		return 0; // TODO implement
+		return 0; // TODO implement captures
 	}
 
 	@Override
 	public void unmakeMove(int move, int token) {
-		squares[move >>> 8] = squares[move & 0xFF];
-		squares[move & 0xFF] = 0;
+		int startSquare = move >>> 8;
+		int endSquare = move & 0xFF;
+		if (toMove) {
+			trollLocations[-squares[endSquare]] = startSquare;
+		} else {
+			dwarfLocations[squares[endSquare]] = startSquare;
+		}
+		squares[startSquare] = squares[endSquare];
+		squares[endSquare] = 0;
 		changeToMove();
-		// TODO implement
+		// TODO implement captures
 	}
 
 	@Override
@@ -158,11 +192,6 @@ public class Board implements BoardInterface {
 	@Override
 	public byte getSquare(int square) {
 		return squares[square];
-	}
-
-	@Override
-	public void setSquare(int square, byte value) {
-		squares[square] = value;
 	}
 
 	/**
@@ -233,8 +262,13 @@ public class Board implements BoardInterface {
 	}
 
 	@Override
-	public MoveGeneratorInterface getMoveGenerator() {
+	public MoveGeneratorInterface[] getMoveGenerators() {
 		return moveGenerator;
+	}
+
+	@Override
+	public MoveGeneratorInterface getMoveGenerator() {
+		return moveGenerator[0];
 	}
 
 	@Override
@@ -250,5 +284,15 @@ public class Board implements BoardInterface {
 	@Override
 	public void setBitboard(BitBoardInterface bitboard) {
 		// TODO implement
+	}
+
+	@Override
+	public int[] getDwarfLocations() {
+		return dwarfLocations;
+	}
+
+	@Override
+	public int[] getTrollLocations() {
+		return trollLocations;
 	}
 }

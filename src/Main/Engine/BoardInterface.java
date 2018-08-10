@@ -58,11 +58,11 @@ public interface BoardInterface extends Serializable {
 
 	void putHashTableElement(Node node);
 
-	void setSquare(int square, byte value);
-
 	void makeMove(String move);
 
 	SearchInterface getSearch();
+
+	MoveGeneratorInterface[] getMoveGenerators();
 
 	MoveGeneratorInterface getMoveGenerator();
 
@@ -71,4 +71,8 @@ public interface BoardInterface extends Serializable {
 	BitBoardInterface getBitboard();
 
 	void setBitboard(BitBoardInterface bitboard);
+
+	int[] getDwarfLocations();
+
+	int[] getTrollLocations();
 }
